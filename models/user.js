@@ -14,42 +14,22 @@ class User {
   /** register new user -- returns
    *    {username, password, first_name, last_name, phone}
    */
-
   static async register({username, password, first_name, last_name, phone}) {
-    console.log(` INSIDE REGISTER: username - ${username}, password-  ${password}, first name -  ${first_name}, last-name --${last_name}, phone - ${phone}`);
-
-
         try {
-          console.log(` INSIDE TRY: username - ${username}, password-  ${password}, first name -  ${first_name}, last-name --${last_name}, phone - ${phone}`);
-
-
-
         if(!username || !password || !first_name || !last_name || !phone){
-          console.log(` FAILED TEST: username - ${username}, password-  ${password}, first name -  ${first_name}, last-name --${last_name}, phone - ${phone}`);
-
             throw new ExpressError('All parts of the form are required', 404)
-
         }
         let today = new Date();
-
-        console.log(`PASSED THE FIRST TEST - username - ${username}, password-  ${password}, first name -  ${first_name}, last-name --${last_name}, phone - ${phone}`);
-
         
         const hashedPassword = await bcrypt.hash(password, BCRYPT_WORK_FACTOR)
-        // console.log(`username - ${username}, password-  ${password}, first name -  ${first_name}, last-name --${last_name}, phone - ${phone}`);
         let result = await db.query(`
         INSERT INTO users (username, password, first_name, last_name, phone, join_at,last_login_at ) 
         VALUES ($1, $2, $3, $4, $5, $6, $7) 
         RETURNING username,password,first_name, last_name, phone `, [username,hashedPassword, first_name, last_name,phone, today, today])
-
-         console.log(` PASSED SECOND TEST username - ${username}, passowrd-  ${password}, first name -  ${first_name}, last-name --${last_name}, phone - ${phone}`);
-        // console.log(result.rows[0])
-
+        console.log(result.rows[0])
         return result.rows[0];
-        
     } catch (error) {
-        console.log("hello")
-
+        console.log(error)
     }
 
    }

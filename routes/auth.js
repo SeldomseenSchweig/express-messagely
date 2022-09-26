@@ -3,10 +3,10 @@ const router = new express.Router();
 const ExpressError = require("../expressError");
 const User = require('../models/user')
 const db = require('../db');
-const {BCRYPT_WORK_FACTOR, SECRET_KEY} = require('../config')
+const {BCRYPT_WORK_FACTOR, SECRET_KEY, DB_URI} = require('../config')
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken')
-const { ensureLoggedin, ensureCorrectUser } = require('../middleware/auth')
+const {ensureLoggedin, ensureCorrectUser } = require('../middleware/auth')
 
 
 
@@ -21,6 +21,7 @@ const { ensureLoggedin, ensureCorrectUser } = require('../middleware/auth')
  router.post('/login', async (req,res,next)=>{
 
     try {
+        console.log(DB_URI)
 
         
         const {username,password} = req.body;
@@ -66,22 +67,14 @@ const { ensureLoggedin, ensureCorrectUser } = require('../middleware/auth')
  router.post('/register', async (req,res,next)=>{
     try {
         const {username, password, first_name, last_name, phone } = req.body;
-        if(!username || !password || !first_name || !last_name|| !phone){
-            throw new ExpressError('Username or password is invalid', 404)
-
-        }
 
         
-        // console.log("++++++++++++++++++++++++++++++++++++++++")
-        // console.log(`username - ${username}, password-  ${password}, first name -  ${first_name}, last-name --${last_name}, phone - ${phone}`);
-        // console.log("++++++++++++++++++++++++++++++++++++++++")
-        let user = await User.register(username, password, first_name, last_name, phone);
+        console.log(username)
+        let user = await User.register({username, password, first_name, last_name, phone});;
         // console.log("++++++++++++++++++++++++++++++++++++++++")
         // console.log(user)
         // console.log("++++++++++++++++++++++++++++++++++++++++")
         const token = jwt.sign({username}, SECRET_KEY)
-
-        
         return res.json({token:token, username:user.username});
         
     } catch (error) {
