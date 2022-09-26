@@ -17,27 +17,28 @@ class User {
 
   static async register({username, password, first_name, last_name, phone}) {
 
+
         try {
 
-        const {username, password, first_name, last_name, phone } = req.body;
+
         if(!username || !password || !first_name || !last_name || !phone){
-            throw new ExpressError('Al parts of the form are required', 404)
+
+            throw new ExpressError('All parts of the form are required', 404)
 
         }
+        let today = new Date();
+        
+
         const hashedPassword = await bcrypt.hash(password, BCRYPT_WORK_FACTOR)
         let result = await db.query(`
-        INSERT INTO users (username, password, first_name, last_name, phone ) 
-        VALUES ($1, $2, $3, $4, $5) 
-        RETURNING username`, [username,hashedPassword, first_name, last_name, phone ])
-
-        return res.json(result.rows[0]);
+        INSERT INTO users (username, password, first_name, last_name, phone, join_at,last_login_at ) 
+        VALUES ($1, $2, $3, $4, $5, $6, $7) 
+        RETURNING username,password,first_name, last_name, phone `, [username,hashedPassword, first_name, last_name,phone, today, today])
+        return result.rows[0];
         
     } catch (error) {
-        if(error.code === '23505'){
-           return next(new ExpressError('Username is taken, choose another', 400))
+        console.log(error)
 
-        }
-        next(error);
     }
 
    }
@@ -46,28 +47,30 @@ class User {
 
   static async authenticate(username, password) { 
 
-  const {username,password} = req.body;
-
   try {
       const results = await db.query(`
-        SELECT username, password 
+        SELECT *
         FROM users 
         WHERE username = $1`,[username]);
         const user = results.rows[0];
+
+        if (results.rows[0].length === 0){
+            throw new ExpressError("User not found", 400)
+
+        }
       if(user){
 
-      if(await bcrypt.compare(password, user.password)){
-          // const token = jwt.sign({username}, SECRET_KEY)
+      if( await bcrypt.compare(password, user.password)){
 
           return true
       }
-            throw new ExpressError("Incorrect Password", 400)
+      throw new ExpressError("Incorrect Password", 400)
 
       }
-      throw new ExpressError("User not found", 400)
+  
   } catch(e){
 
-    return next(e)
+    // console.log(e)
   }
 }
 
@@ -84,7 +87,7 @@ class User {
               throw new ExpressError('User does not exist, not updated, error', 400)   
              }
 
-          return result.rows[0];
+          return results.rows[0];
     }
 
 
@@ -94,9 +97,9 @@ class User {
 
   static async all() {
 
-    const results = await db.query('SELECT username, first_name, last_name, phone  age FROM users')   
-    // const users = results.rows.map(r=> new User(r.id, r.name, r.age));
-    return resutls.rows;
+    const results = await db.query('SELECT username, first_name, last_name, phone FROM users')   
+    const users = results.rows.map(r=> new User(r.username, r.first_name, r.last_name, r.phone));
+    return results.rows;
 
    }
 
@@ -113,12 +116,15 @@ class User {
 
   static async get(username) {
 
-    let result = await db.query("SELECT username FROM users WHERE username = $1", [username]);
+    let result = await db.query("SELECT username, first_name, last_name, phone, join_at, last_login_at FROM users WHERE username = $1", [username]);
 
     if(result.rows.length === 0){
+      console.log("Hello")
         throw new ExpressError('No user by that username exists', 404)
+
     }
-    return result.rows[0];
+    let r = result.rows[0];
+    return r;
 
    }
 
@@ -132,7 +138,7 @@ class User {
 
   static async messagesFrom(username) {
 
-      let result = await db.query("SELECT username FROM users WHERE username = $1", [username]);
+      let result = await db.query("SELECT id, to_username, body, sent_at, read_at FROM messages WHERE from_username = $1", [username]);
 
     if(result.rows.length === 0){
         throw new ExpressError('No user by that username exists', 404)
@@ -150,7 +156,15 @@ class User {
    *   {username, first_name, last_name, phone}
    */
 
-  static async messagesTo(username) { }
+  static async messagesTo(username) {
+
+    let result = await db.query("SELECT id, to_user, body, sent_at, read_at FROM messages WHERE to_username = $1", [username]);
+
+    if(result.rows.length === 0){
+        throw new ExpressError('No user by that username exists', 404)
+    }
+    return result.rows[0];
+   }
 }
 
 
