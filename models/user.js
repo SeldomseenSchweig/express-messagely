@@ -16,28 +16,39 @@ class User {
    */
 
   static async register({username, password, first_name, last_name, phone}) {
+    console.log(` INSIDE REGISTER: username - ${username}, password-  ${password}, first name -  ${first_name}, last-name --${last_name}, phone - ${phone}`);
 
 
         try {
+          console.log(` INSIDE TRY: username - ${username}, password-  ${password}, first name -  ${first_name}, last-name --${last_name}, phone - ${phone}`);
+
 
 
         if(!username || !password || !first_name || !last_name || !phone){
+          console.log(` FAILED TEST: username - ${username}, password-  ${password}, first name -  ${first_name}, last-name --${last_name}, phone - ${phone}`);
 
             throw new ExpressError('All parts of the form are required', 404)
 
         }
         let today = new Date();
-        
 
+        console.log(`PASSED THE FIRST TEST - username - ${username}, password-  ${password}, first name -  ${first_name}, last-name --${last_name}, phone - ${phone}`);
+
+        
         const hashedPassword = await bcrypt.hash(password, BCRYPT_WORK_FACTOR)
+        // console.log(`username - ${username}, password-  ${password}, first name -  ${first_name}, last-name --${last_name}, phone - ${phone}`);
         let result = await db.query(`
         INSERT INTO users (username, password, first_name, last_name, phone, join_at,last_login_at ) 
         VALUES ($1, $2, $3, $4, $5, $6, $7) 
         RETURNING username,password,first_name, last_name, phone `, [username,hashedPassword, first_name, last_name,phone, today, today])
+
+         console.log(` PASSED SECOND TEST username - ${username}, passowrd-  ${password}, first name -  ${first_name}, last-name --${last_name}, phone - ${phone}`);
+        // console.log(result.rows[0])
+
         return result.rows[0];
         
     } catch (error) {
-        console.log(error)
+        console.log("hello")
 
     }
 
@@ -64,7 +75,7 @@ class User {
 
           return true
       }
-      throw new ExpressError("Incorrect Password", 400)
+      // throw new ExpressError("Incorrect Password", 400)
 
       }
   
@@ -138,14 +149,36 @@ class User {
 
   static async messagesFrom(username) {
 
-      let result = await db.query("SELECT id, to_username, body, sent_at, read_at FROM messages WHERE from_username = $1", [username]);
+  const result = await db.query(
+    `SELECT m.id,
+    m.to_username,
+    u.first_name,
+    u.last_name,
+    u.phone,
+    m.body,
+    m.sent_at,
+    m.read_at
+    FROM messages AS m
+    JOIN users AS u ON m.to_username = u.username
+    WHERE from_username = $1`,
+    [username]);
 
     if(result.rows.length === 0){
-        throw new ExpressError('No user by that username exists', 404)
-    }
-    return result.rows[0];
+      throw new ExpressError('No user by that username exists', 404)
+  }
 
-
+    return result.rows.map(m => ({
+      id: m.id,
+      to_user: {
+      username: m.to_username,
+      first_name: m.first_name,
+      last_name: m.last_name,
+      phone: m.phone
+      },
+      body: m.body,
+      sent_at: m.sent_at,
+      read_at: m.read_at
+      }));
      }
 
   /** Return messages to this user.
@@ -158,12 +191,44 @@ class User {
 
   static async messagesTo(username) {
 
-    let result = await db.query("SELECT id, to_user, body, sent_at, read_at FROM messages WHERE to_username = $1", [username]);
-
-    if(result.rows.length === 0){
+    const result = await db.query(
+      `SELECT m.id,
+      m.from_username,
+      u.first_name,
+      u.last_name,
+      u.phone,
+      m.body,
+      m.sent_at,
+      m.read_at
+      FROM messages AS m
+      JOIN users AS u ON m.from_username = u.username
+      WHERE to_username = $1`,
+      [username]);
+  
+      if(result.rows.length === 0){
         throw new ExpressError('No user by that username exists', 404)
     }
-    return result.rows[0];
+  
+      return result.rows.map(m => ({
+        id: m.id,
+        from_user: {
+        username: m.from_username,
+        first_name: m.first_name,
+        last_name: m.last_name,
+        phone: m.phone
+        },
+        body: m.body,
+        sent_at: m.sent_at,
+        read_at: m.read_at
+        }));
+
+    // let result = await db.query("SELECT id, from_username, body, sent_at, read_at FROM messages WHERE to_username = $1", [username]);
+
+
+    // if(result.rows.length === 0){
+    //     throw new ExpressError('No user by that username exists', 404)
+    // }
+    // return result.rows[0];
    }
 }
 
